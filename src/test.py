@@ -7,9 +7,9 @@ def trace_exit(frame):
     print "Leaving:", frame.f_code.co_name
     
 def before_call(fun):
-    if not hasattr(fun, 'func_code'):
+    if not patch.can_patch(fun):
         print "Calling builtin", fun
-        return 0, 0
+        return 1, 0
         
     return patch_trace(fun)
 
@@ -20,7 +20,7 @@ def patch_trace(fun):
 
     if hasattr(fun, 'func_code'):
         patch.patch_pre(fun, trace_call)
-        patch.patch_exit(fun, trace_exit)
+#        patch.patch_exit(fun, trace_exit)
     
 #    if patch.patch_calls(fun, before_call):
     return patch.PATCH_NOMORE, None

@@ -22,9 +22,9 @@ def generate_file(fname):
 
   #  print s(1,2)
     f = file(fname, 'w')
-#    for x in xrange(1000000):
-#        val = randint(1, 1000)
-#        f.write(str(val).zfill(4) + '\n')
+    for x in xrange(1000000):
+        val = randint(1, 1000)
+        f.write(str(val).zfill(4) + '\n')
 
 def go(name):
     s(1,2)
@@ -34,3 +34,11 @@ def go(name):
     #with file(name) as f:
     #   sort_file(f)
 
+def trace(*args):
+    return trace
+
+if __name__=='__main__':
+    import sys
+    sys.settrace(trace)
+    
+    go('test.txt')

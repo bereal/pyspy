@@ -1,0 +1,2 @@
+Pyspy is injecting tracing into a running Python program by patching its bytecode.
+The output is supposed to be displayed in form of sequence diagrams in order to help debugging and program understanding.

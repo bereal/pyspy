@@ -20,8 +20,12 @@ NOPATCH_CACHE = set()
 NOMORE_CACHE = {} 
 
 def can_patch(obj):
-    k = (obj.__module__, obj.__name__)
+    k = obj.__class__
+
     if k in NOPATCH_CACHE:
+        return False
+
+    if hasattr(obj, _PYSPY_SKIP):
         return False
 
     if hasattr(obj, '_pyspy_can_patch'):
@@ -34,12 +38,12 @@ def can_patch(obj):
         return False
 
 def _decorate(fun, callback):
-    if hasattr(fun, _PYSPY_SKIP):
+    if not can_patch(fun):
         return fun
 
     _id = callback._pyspy_id
 
-    if hasattr(fun, _id):
+    if hasattr(fun, _id): #already patched
         return fun
 
     nomore = NOMORE_CACHE.get(_id)
@@ -85,10 +89,7 @@ def patch_pre(fun, callback):
     code = Code.from_code(fun.func_code)
     code.code[0:0] = patch
 
-    try:
-        fun.func_code = code.to_code()
-    except:
-        pass
+    fun.func_code = code.to_code()
     return True
 
 def patch_return(fun, callback):
@@ -109,18 +110,13 @@ def patch_calls(fun, callback, **kw):
         kwlen = (call_arg - argnum) >> 7
         argl = argnum + kwlen
 
-        replace_call = [(BUILD_LIST, argl),
+        replace_call = [(BUILD_TUPLE, argl),
+                        (UNPACK_SEQUENCE, argl),
+                        (BUILD_TUPLE, argl),
                         (STORE_FAST, '_pyspy_args'),
-                        (LOAD_FAST, '_pyspy_args'),
-                        (LOAD_ATTR, 'reverse'),
-                        (CALL_FUNCTION, 0),
-                        (POP_TOP, None),
-                        (STORE_FAST, '_pyspy_fun'),
 
                         # Now function is on top of the stack
-                        # start decorating
                         
-                        (LOAD_FAST, '_pyspy_fun'),
                         (LOAD_GLOBAL, callback_name),   # callback
                         (LOAD_GLOBAL, wrapper_name),
                         (ROT_THREE, 0),
@@ -133,8 +129,6 @@ def patch_calls(fun, callback, **kw):
 
         return replace_call
 
-#(LOAD_CONST, None)]
-
     cur_code = Code.from_code(fun.func_code)
 
     i = 0
@@ -145,68 +139,10 @@ def patch_calls(fun, callback, **kw):
             insert = gen_patch(arg)
 
             inserts.append((i, insert))
-
-#        if fun == sort.generate_file and len(replaces) == 4:
-#            break
-
         i += 1
 
     inserts.reverse()
     for i, ins in inserts:
         cur_code.code[i:i] = ins
 
-
-    '''
-    import dis
-    print fun
-    print dis.disassemble(fun.func_code)
-    print cur_code.code
-    '''
-    try:
-        fun.func_code = cur_code.to_code()
-    except: pass
-
-#    raise Exception()
-    
-def f():
-    print 2
-    
-
-def test():
-    def g():
-        f()
-
-    def printer(*args):
-        print args
-        
-    patch_calls(g, printer)
-    g()
-'''
-                        (DUP_TOP, None),
-                        (LOAD_CONST, 'func_code'),
-                        (LOAD_GLOBAL, 'hasattr'),
-                        (ROT_THREE, None),
-                        (CALL_FUNCTION, 2),
-                        (JUMP_IF_FALSE, label_wrap),
-                        
-                        (POP_TOP, None),
-                        
-                        (DUP_TOP, None),
-                        (LOAD_CONST, '_pyspy_skip'),
-                        (LOAD_GLOBAL, 'hasattr'),
-                        (ROT_THREE, None),
-                        (CALL_FUNCTION, 2),
-                        (JUMP_IF_TRUE, label_pop),
-
-                        (POP_TOP, None),
-                        
-                        (DUP_TOP, None),
-                        (LOAD_CONST, callback_name),
-                        (LOAD_GLOBAL, 'hasattr'),
-                        (ROT_THREE, None),
-                        (CALL_FUNCTION, 2),
-                        (JUMP_IF_TRUE, label_pop),
-                        
-                        (label_wrap, None),                        
-                        (POP_TOP, None),            # pop hasattr result
-'''
+    fun.func_code = cur_code.to_code()
